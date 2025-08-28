@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:nba_app/components/my_drawer.dart';
 import 'package:nba_app/models/team.dart';
+import 'package:nba_app/pages/team_page.dart';
 
 class HomePage extends StatefulWidget {
   HomePage({super.key});
@@ -64,7 +65,12 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (context, index) {
                 return GestureDetector(
                   onTap: () {
-                    Navigator.pushNamed(context, '/TeamPage');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TeamPage(team: teams[index]),
+                      ),
+                    );
                   },
                   child: Container(
                     decoration: BoxDecoration(
