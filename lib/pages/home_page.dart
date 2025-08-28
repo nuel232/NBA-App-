@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
 
     for (var eachTeam in jsonData['data']) {
       final team = Team(
+        id: eachTeam['id'],
         abbreviation: eachTeam['abbreviation'],
         city: eachTeam['city'],
       );
