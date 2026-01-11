@@ -14,8 +14,33 @@ class ApiService {
   static const int maxRetries = 3;
   static const Duration retryDelay = Duration(seconds: 2);
 
-  String get _apiKey => dotenv.env['API_KEY'] ?? '';
+  String get _apiKey {
+    final key = dotenv.env['API_KEY'] ?? '';
+    if (key.isEmpty) {
+      _logger.w('API_KEY is missing from .env file');
+      throw ApiException(
+        'API key is not configured. Please check your .env file.',
+      );
+    }
+    return key;
+  }
+
   String get _baseUrl => 'api.balldontlie.io';
+
+  /// Validates that API key is configured
+  void validateApiKey() {
+    try {
+      final key = _apiKey;
+      if (key.isEmpty) {
+        throw ApiException(
+          'API key is not configured. Please check your .env file.',
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('API key validation failed: $e');
+    }
+  }
 
   Future<http.Response> _makeRequestWithRetry(
     Future<http.Response> Function() request, {
@@ -24,31 +49,39 @@ class ApiService {
     // Check connectivity first
     final connectivityResult = await _connectivity.checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
-      throw NetworkException('No internet connection. Please check your network settings.');
+      throw NetworkException(
+        'No internet connection. Please check your network settings.',
+      );
     }
 
     int attempt = 0;
     while (attempt < retries) {
       try {
         final response = await request();
-        
+
         if (response.statusCode >= 200 && response.statusCode < 300) {
           return response;
         } else if (response.statusCode == 401) {
           throw ApiException('Unauthorized. Please check your API key.');
         } else if (response.statusCode == 403) {
-          throw ApiException('Access forbidden. Please check your API permissions.');
+          throw ApiException(
+            'Access forbidden. Please check your API permissions.',
+          );
         } else if (response.statusCode >= 500) {
           // Retry on server errors
           attempt++;
           if (attempt < retries) {
-            _logger.w('Server error ${response.statusCode}, retrying... (attempt $attempt/$retries)');
+            _logger.w(
+              'Server error ${response.statusCode}, retrying... (attempt $attempt/$retries)',
+            );
             await Future.delayed(retryDelay * attempt);
             continue;
           }
           throw ApiException('Server error. Please try again later.');
         } else {
-          throw ApiException('Request failed with status ${response.statusCode}');
+          throw ApiException(
+            'Request failed with status ${response.statusCode}',
+          );
         }
       } on NetworkException {
         rethrow;
@@ -57,7 +90,9 @@ class ApiService {
       } catch (e) {
         attempt++;
         if (attempt < retries) {
-          _logger.w('Request failed, retrying... (attempt $attempt/$retries): $e');
+          _logger.w(
+            'Request failed, retrying... (attempt $attempt/$retries): $e',
+          );
           await Future.delayed(retryDelay * attempt);
           continue;
         }
@@ -65,12 +100,14 @@ class ApiService {
         throw ApiException('Failed to fetch data. Please try again later.');
       }
     }
-    
+
     throw ApiException('Request failed after $retries attempts');
   }
 
   Future<List<Map<String, dynamic>>> getTeams() async {
     try {
+      validateApiKey();
+
       final response = await _makeRequestWithRetry(() async {
         return await http.get(
           Uri.https(_baseUrl, '/v1/teams'),
@@ -78,11 +115,32 @@ class ApiService {
         );
       });
 
-      final jsonData = jsonDecode(response.body);
-      if (jsonData['data'] != null) {
-        return List<Map<String, dynamic>>.from(jsonData['data']);
+      // Validate response structure
+      if (response.body.isEmpty) {
+        throw ApiException('Empty response from server');
       }
-      return [];
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+
+      // Validate response structure
+      if (!jsonData.containsKey('data')) {
+        _logger.w('Response missing "data" field: ${jsonData.keys}');
+        return [];
+      }
+
+      final data = jsonData['data'];
+      if (data == null) {
+        return [];
+      }
+
+      if (data is! List) {
+        _logger.w('Expected List but got ${data.runtimeType}');
+        return [];
+      }
+
+      return List<Map<String, dynamic>>.from(
+        data.map((item) => item as Map<String, dynamic>),
+      );
     } catch (e) {
       _logger.e('Error fetching teams: $e');
       rethrow;
@@ -119,11 +177,32 @@ class ApiService {
         );
       });
 
-      final jsonData = jsonDecode(response.body);
-      if (jsonData['data'] != null) {
-        return List<Map<String, dynamic>>.from(jsonData['data']);
+      // Validate response structure
+      if (response.body.isEmpty) {
+        throw ApiException('Empty response from server');
       }
-      return [];
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+
+      // Validate response structure
+      if (!jsonData.containsKey('data')) {
+        _logger.w('Response missing "data" field: ${jsonData.keys}');
+        return [];
+      }
+
+      final data = jsonData['data'];
+      if (data == null) {
+        return [];
+      }
+
+      if (data is! List) {
+        _logger.w('Expected List but got ${data.runtimeType}');
+        return [];
+      }
+
+      return List<Map<String, dynamic>>.from(
+        data.map((item) => item as Map<String, dynamic>),
+      );
     } catch (e) {
       _logger.e('Error fetching games: $e');
       rethrow;
@@ -152,11 +231,32 @@ class ApiService {
         );
       });
 
-      final jsonData = jsonDecode(response.body);
-      if (jsonData['data'] != null) {
-        return List<Map<String, dynamic>>.from(jsonData['data']);
+      // Validate response structure
+      if (response.body.isEmpty) {
+        throw ApiException('Empty response from server');
       }
-      return [];
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+
+      // Validate response structure
+      if (!jsonData.containsKey('data')) {
+        _logger.w('Response missing "data" field: ${jsonData.keys}');
+        return [];
+      }
+
+      final data = jsonData['data'];
+      if (data == null) {
+        return [];
+      }
+
+      if (data is! List) {
+        _logger.w('Expected List but got ${data.runtimeType}');
+        return [];
+      }
+
+      return List<Map<String, dynamic>>.from(
+        data.map((item) => item as Map<String, dynamic>),
+      );
     } catch (e) {
       _logger.e('Error fetching player stats: $e');
       rethrow;
@@ -167,7 +267,7 @@ class ApiService {
 class ApiException implements Exception {
   final String message;
   ApiException(this.message);
-  
+
   @override
   String toString() => message;
 }
@@ -175,7 +275,7 @@ class ApiException implements Exception {
 class NetworkException implements Exception {
   final String message;
   NetworkException(this.message);
-  
+
   @override
   String toString() => message;
 }

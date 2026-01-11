@@ -9,14 +9,14 @@ import 'package:nba_app/providers/games_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     // Handle case where .env file is missing
     debugPrint('Warning: Could not load .env file: $e');
   }
-  
+
   runApp(const MyApp());
 }
 
@@ -34,10 +34,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'NBA App',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
+        theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
         initialRoute: '/home',
         routes: {
           '/home': (context) => const HomePage(),
