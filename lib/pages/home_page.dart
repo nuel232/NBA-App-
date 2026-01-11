@@ -1,75 +1,84 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:nba_app/components/my_drawer.dart';
-import 'package:nba_app/models/team.dart';
+import 'package:nba_app/components/error_widget.dart';
 import 'package:nba_app/pages/team_page.dart';
+import 'package:nba_app/providers/teams_provider.dart';
 
 class HomePage extends StatefulWidget {
-  HomePage({super.key});
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Team> teams = [];
-
-  //get teams
-  Future getTeams() async {
-    var response = await http.get(
-      Uri.https('api.balldontlie.io', '/v1/teams'),
-      headers: {'Authorization': dotenv.env['API_KEY'] ?? ''},
-    );
-    var jsonData = jsonDecode(response.body);
-
-    for (var eachTeam in jsonData['data']) {
-      final team = Team(
-        full_name: eachTeam['full_name'] ?? eachTeam['abbreviation'],
-        id: eachTeam['id'],
-        abbreviation: eachTeam['abbreviation'],
-        city: eachTeam['city'],
-      );
-      teams.add(team);
-    }
-
-    print(teams.length);
-  }
-
   @override
   void initState() {
     super.initState();
-    getTeams();
+    // Load teams when page initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TeamsProvider>().loadTeams();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[300],
-      drawer: MyDrawer(),
+      drawer: const MyDrawer(),
       appBar: AppBar(
-        title: Text('NBA TEAMS'),
+        title: const Text('NBA TEAMS'),
         centerTitle: true,
         backgroundColor: Colors.blue[500],
       ),
+      body: Consumer<TeamsProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading && provider.teams.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-      //when you make a request to an API, it takes time to get the response that why you use a Future builder
-      body: FutureBuilder(
-        future: getTeams(),
-        builder: (context, snapshot) {
-          //is it done loading? then show team data
-          if (snapshot.connectionState == ConnectionState.done) {
-            return ListView.builder(
-              itemCount: teams.length,
+          if (provider.hasError) {
+            return ErrorDisplayWidget(
+              message: provider.errorMessage ?? 'Failed to load teams',
+              onRetry: () => provider.loadTeams(refresh: true),
+            );
+          }
+
+          if (provider.teams.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.sports_basketball,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No teams found',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              await provider.loadTeams(refresh: true);
+            },
+            child: ListView.builder(
+              itemCount: provider.teams.length,
               itemBuilder: (context, index) {
+                final team = provider.teams[index];
                 return GestureDetector(
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TeamPage(team: teams[index]),
+                        builder: (context) => TeamPage(team: team),
                       ),
                     );
                   },
@@ -77,40 +86,37 @@ class _HomePageState extends State<HomePage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       color: Colors.grey[200],
-
                       boxShadow: [
                         BoxShadow(
                           color: Colors.grey.withOpacity(0.5),
                           spreadRadius: 1,
                           blurRadius: 1,
-                          offset: Offset(0, 3), // changes position of shadow
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                    padding: EdgeInsets.all(10),
-
+                    margin: const EdgeInsets.symmetric(
+                      vertical: 5,
+                      horizontal: 10,
+                    ),
+                    padding: const EdgeInsets.all(10),
                     child: ListTile(
-                      title: Text(teams[index].abbreviation),
-                      subtitle: Text(teams[index].city),
+                      title: Text(team.abbreviation),
+                      subtitle: Text(team.city),
                       leading: CircleAvatar(
                         backgroundColor: Colors.blue[600],
                         child: Text(
-                          teams[index].abbreviation[0],
-                          style: TextStyle(color: Colors.white),
+                          team.abbreviation[0],
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ),
-                      trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     ),
                   ),
                 );
               },
-            );
-          }
-          //if it is still loading show loading circle
-          else {
-            return Center(child: CircularProgressIndicator());
-          }
+            ),
+          );
         },
       ),
     );

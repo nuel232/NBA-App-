@@ -26,14 +26,20 @@ class LiveTeam {
     List<PlayerGameStats> playersList = [];
 
     // Convert each player's stats from JSON
-    if (json['players'] != null) {
+    // Note: Players may not always be present in game JSON responses
+    if (json['players'] != null && json['players'] is List) {
       for (var playerJson in json['players']) {
-        playersList.add(PlayerGameStats.fromJson(playerJson));
+        try {
+          playersList.add(PlayerGameStats.fromJson(playerJson));
+        } catch (e) {
+          // Skip invalid player data
+          continue;
+        }
       }
     }
 
     return LiveTeam(
-      id: json['id'],
+      id: json['id'] ?? 0,
       conference: json['conference'] ?? '',
       division: json['division'] ?? '',
       city: json['city'] ?? '',
